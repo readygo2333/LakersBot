@@ -195,13 +195,13 @@ class Lakers(sc2.BotAI):
         await self.expand_command_center(iteration)
 
         ################ 采矿 ######################
-        if not self.is_worker_rush:
-            await self.distribute_workers()
-            for a in self.units(REFINERY):
-                if a.assigned_harvesters < a.ideal_harvesters:
-                    w = self.workers.closer_than(20, a)
-                    if w.exists:
-                        await self.do(w.random.gather(a))
+        #if not self.is_worker_rush:
+        await self.distribute_workers()
+        for a in self.units(REFINERY):
+            if a.assigned_harvesters < a.ideal_harvesters:
+                w = self.workers.closer_than(20, a)
+                if w.exists:
+                    await self.do(w.random.gather(a))
 
         ################ 训练 ######################
         await self.train_WORKERS(cc)      # 训练农民
@@ -257,13 +257,13 @@ class Lakers(sc2.BotAI):
         await self.expand_command_center(iteration)
 
         ################ 采矿 ######################
-        if not self.is_worker_rush:
-            await self.distribute_workers()
-            for a in self.units(REFINERY):
-                if a.assigned_harvesters < a.ideal_harvesters:
-                    w = self.workers.closer_than(20, a)
-                    if w.exists:
-                        await self.do(w.random.gather(a))
+        #if not self.is_worker_rush:
+        await self.distribute_workers()
+        for a in self.units(REFINERY):
+            if a.assigned_harvesters < a.ideal_harvesters:
+                w = self.workers.closer_than(20, a)
+                if w.exists:
+                    await self.do(w.random.gather(a))
 
         ################ 训练 ######################
         await self.train_WORKERS(cc)      # 训练农民
@@ -349,7 +349,7 @@ class Lakers(sc2.BotAI):
 
     async def build_SUPPLYDEPOT(self, cc):
         if self.supply_left <= 3 and self.can_afford(SUPPLYDEPOT) and not self.already_pending(SUPPLYDEPOT): # and not self.first_supply_built:
-            await self.build(SUPPLYDEPOT, near = cc.position.towards(self.game_info.map_center, 8))
+            await self.build(SUPPLYDEPOT, near = cc.position.towards(self.game_info.map_center, 5))
             return
 
     async def build_BARRACKS(self, cc):
@@ -362,7 +362,7 @@ class Lakers(sc2.BotAI):
 
     async def build_FACTORY(self, cc):
         if self.units(FACTORY).amount < 1 and self.units(BARRACKS).ready.exists and self.can_afford(FACTORY) and not self.already_pending(FACTORY):
-            await self.build(FACTORY, near = cc.position.towards(self.game_info.map_center, 9))
+            await self.build(FACTORY, near = cc.position.towards(self.game_info.map_center, 15))
         # 修建 FACTORYTECHLAB, 以建造坦克
         for sp in self.units(FACTORY).ready:
             if sp.add_on_tag == 0:
@@ -370,7 +370,7 @@ class Lakers(sc2.BotAI):
 
     async def build_STARPORT(self, cc):
         if self.units(STARPORT).amount < 1 and self.units(FACTORY).ready.exists and self.can_afford(STARPORT) and not self.already_pending(STARPORT):
-            await self.build(STARPORT, near = cc.position.towards(self.game_info.map_center, 9))
+            await self.build(STARPORT, near = cc.position.towards(self.game_info.map_center, 20))
         # 修建 STARPORTTECHLAB, 以建女妖
         for sp in self.units(STARPORT).ready:
             if sp.add_on_tag == 0:
@@ -399,7 +399,7 @@ class Lakers(sc2.BotAI):
 
     async def build_BUNKER(self, cc):
         if self.units(BUNKER).amount < 4 and self.units(GHOSTACADEMY).ready.exists and self.can_afford(BUNKER) and not self.already_pending(BUNKER):
-            await self.build(BUNKER, near = cc.position.towards(self.game_info.map_center, 9))
+            await self.build(BUNKER, near = cc.position.towards(self.game_info.map_center, 5))
 
     async def build_REFINERY(self, cc):
         if self.units(BARRACKS).exists and self.units(REFINERY).amount < self.units(COMMANDCENTER).amount * 2 and self.can_afford(REFINERY) and not self.already_pending(REFINERY):
@@ -467,12 +467,12 @@ class Lakers(sc2.BotAI):
                 defence_target = threats[0].position.random_on_distance(random.randrange(1, 3))
                 for pr in self.units(SCV):
                     self.combinedActions.append(pr.attack(defence_target))
-                for ma in self.units(MARINE):
+                for ma in self.units(MARINE).random_group_of(round(len(self.units(MARINE)) / 2)):
                     self.combinedActions.append(ma.attack(defence_target))
 
                 # 如果敌军拥有6个以上的农民，认为对方在使用农民rush，所以对方发展必定滞后，所以后面直接rush回去
-                if self.known_enemy_units.filter(lambda unit: unit.type_id is SCV).amount >= 6:
-                    self.is_worker_rush = True
+                #if self.known_enemy_units.filter(lambda unit: unit.type_id is SCV).amount >= 6:
+                #    self.is_worker_rush = True
 
             # 如果有2-6个威胁，调动一半农民防守，如果有机枪兵也投入防守
             elif 1 < len(threats) < 7:
@@ -481,18 +481,14 @@ class Lakers(sc2.BotAI):
                 self.scv1 = self.units(SCV).random_group_of(round(len(self.units(SCV)) / 2))
                 for scv in self.scv1:
                     self.combinedActions.append(scv.attack(defence_target))
-                for ma in self.units(MARINE):
-                    self.combinedActions.append(ma.attack(defence_target))
 
             # 只有一个威胁，视为骚扰，调动一个农民防守，如果有机枪兵也投入防守
             elif len(threats) == 1 and not self.is_defend_rush:
                 self.is_defend_rush = True
                 defence_target = threats[0].position.random_on_distance(random.randrange(1, 3))
-                for scv in self.units(SCV):
+                self.scv2 = self.units(SCV).random_group_of(2)
+                for scv in self.scv2:
                     self.combinedActions.append(scv.attack(defence_target))
-                    break
-                for ma in self.units(MARINE):
-                    self.combinedActions.append(ma.attack(defence_target))
 
             elif len(threats) == 0 and self.is_defend_rush:
                 #if self.is_worker_rush:
@@ -518,8 +514,10 @@ class Lakers(sc2.BotAI):
 
                 self.is_worker_rush = False
                 self.is_defend_rush = False
-
-        await self.do_actions(self.combinedActions)
+            await self.do_actions(self.combinedActions)
+        else:
+            self.is_worker_rush = False
+            self.is_defend_rush = False
 
     async def expand_command_center(self, iteration):
         if self.units(COMMANDCENTER).exists and ((iteration > 500 and self.units(COMMANDCENTER).amount < 2) or (iteration > 2000 and self.units(COMMANDCENTER).amount < 3)) and self.can_afford(COMMANDCENTER):
