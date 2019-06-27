@@ -16,7 +16,7 @@ class Lakers(sc2.BotAI):
         self.combinedActions = []
         self.enemy_expand_location = None
         self.first_supply_built=False
-        self.stage = "early_rush"
+        #self.stage = "early_rush"
         self.counter_units = {
             #Enemy: [Enemy_Cunts, Army, Num]
             MARINE: [3, SIEGETANK, 1],
@@ -29,107 +29,66 @@ class Lakers(sc2.BotAI):
         self.is_defend_rush = False
         self.defend_around = [COMMANDCENTER, SUPPLYDEPOT, SENSORTOWER, MISSILETURRET, BARRACKS, FACTORY]
         self.is_worker_rush = False
-
-    async def on_game_start(self):
-        for worker in self.workers:
-            closest_mineral_patch = self.state.mineral_field.closest_to(worker)
-            self.combinedActions.append(worker.gather(closest_mineral_patch))
-            await self.do_actions(self.combinedActions)
-        self.enemy_expand_location = await self.find_enemy_expand_location()
-
-    async def find_enemy_expand_location(self):
-        closest = None
-        distance = math.inf
-        for el in self.expansion_locations:
-            def too_near_to_expansion(t):
-                return t.position.distance_to(el) < self.EXPANSION_GAP_THRESHOLD
-
-            if too_near_to_expansion(sc2.position.Point2(self.enemy_start_locations[0])):
-                continue
-
-            d = await self._client.query_pathing(self.enemy_start_locations[0], el)
-            if d is None:
-                continue
-
-            if d < distance:
-                distance = d
-                closest = el
-        return closest
+        self.attack_round = 0
+        self.warmup = 1
+        self.Army = []
+        self.need_counter_attack = False
 
     async def on_step(self, iteration):
-        #if iteration == 0:
-        #    await self.on_game_start()
-        #    return
-
-        #ccs = self.units(COMMANDCENTER).ready
-        #if not ccs.exists:
-        #    await self.worker_rush(iteration)
-        #    return
-        #else:
-        #    for cc in ccs:
-        #        await self.main_progress(iteration, cc)
-
-        #if self.stage == "early_rush":
-        #    await self.early_rush(iteration)
-        #    return
-        #await self.main_progress(iteration, cc)
-
-        await self.base1(iteration)
-        await self.base2(iteration)
-        await self.base3(iteration)
-
-
-    async def early_rush(self, iteration):
-        cc = self.units(COMMANDCENTER).ready
-        #采矿
-        await self.distribute_workers()
-        #造农民
-        await self.train_WORKERS(cc)
-        cc = self.units(COMMANDCENTER).ready
-        #1.房子，第一个堵路口
-        await self.build_rush_SUPPLYDEPOT(cc)
-
-        #2. 气矿
-        #await self.build_REFINERY(cc)
-
-        #3. 兵营
-        await self.build_rush_BARRACKS(cc)
-
-        #4. 枪兵
-        await self.train_MARINE()
-        #5. 坦克
-        await self.train_SIEGETANK()
-
-        self.state = 'done'
+        await self.command_center(iteration)
 
     # Start
-    async def base1(self, iteration):
-        cc = self.units(COMMANDCENTER).ready
-        if not cc.exists:
-            await self.worker_rush(iteration)
-            return
-        else:
-            cc = cc.first
-
-        #await self.worker_rush(iteration)
-        await self.worker_detect(iteration)
-        #await self.marine_detect(iteration)
+    async def command_center(self, iteration):
         await self.defend_rush(iteration)
 
         ############### 修建筑 ####################
-        await self.build_SUPPLYDEPOT(cc)      # 修建补给站
-        await self.build_BARRACKS(cc)         # 修建兵营
-        await self.build_FACTORY(cc)          # 修建重工厂
-        await self.build_STARPORT(cc)         # 修建星港
-        #wait self.build_ENGINEERINGBAY(cc)   # 修建工程站
-        #wait self.build_SENSORTOWER(cc)      # 修建感应塔
-        #await self.build_MISSILETURRET(cc)    # 修建导弹他
-        #await self.build_GHOSTACADEMY(cc)     # 修建幽灵学院
-        #await self.build_BUNKER(cc)           # 修建地堡
-        await self.build_REFINERY(cc)         # 修建精炼厂
+        cc1 = self.units(COMMANDCENTER).ready
+        if not cc1.exists:
+            await self.worker_rush(iteration)
+            return
+        else:
+            cc1 = cc1.first
+            await self.build_SUPPLYDEPOT(cc1)      # 修建补给站
+            await self.build_BARRACKS(cc1)         # 修建兵营
+            await self.build_REFINERY(cc1)         # 修建精炼厂
+            await self.build_FACTORY(cc1)          # 修建重工厂
+            await self.build_STARPORT(cc1)         # 修建星港
 
-        ############### 扩张 ######################
-        await self.expand_command_center(iteration)
+        ccs = self.units(COMMANDCENTER).ready
+        if ccs.amount == 2:
+            cc2 = ccs[1]
+            await self.build_SUPPLYDEPOT(cc2)      # 修建补给站
+            await self.build_BARRACKS(cc2)         # 修建兵营
+            await self.build_REFINERY(cc2)         # 修建精炼厂
+            await self.build_FACTORY(cc2)          # 修建重工厂
+            await self.build_STARPORT(cc2)         # 修建星港
+            
+        ccs = self.units(COMMANDCENTER).ready
+        if ccs.amount == 3:
+            cc3 = ccs[2]
+            await self.build_SUPPLYDEPOT(cc3)      # 修建补给站
+            await self.build_BARRACKS(cc3)         # 修建兵营
+            await self.build_REFINERY(cc3)         # 修建精炼厂
+            await self.build_FACTORY(cc3)          # 修建重工厂
+            await self.build_STARPORT(cc3)         # 修建星港
+            await self.build_ENGINEERINGBAY(cc3)   # 修建工程站
+            await self.build_SENSORTOWER(cc3)      # 修建感应塔
+            await self.build_MISSILETURRET(cc3)    # 修建导弹他
+            await self.build_GHOSTACADEMY(cc3)     # 修建幽灵学院
+            await self.build_BUNKER(cc3)           # 修建地堡
+        
+        if self.units(COMMANDCENTER).ready.amount > 3:
+            for cc in self.units(COMMANDCENTER).ready:
+                await self.build_SUPPLYDEPOT(cc)      # 修建补给站
+                await self.build_BARRACKS(cc)         # 修建兵营
+                await self.build_REFINERY(cc)         # 修建精炼厂
+                await self.build_FACTORY(cc)          # 修建重工厂
+                await self.build_STARPORT(cc)         # 修建星港
+                await self.build_ENGINEERINGBAY(cc)   # 修建工程站
+                await self.build_SENSORTOWER(cc)      # 修建感应塔
+                await self.build_MISSILETURRET(cc)    # 修建导弹他
+                await self.build_GHOSTACADEMY(cc)     # 修建幽灵学院
+                await self.build_BUNKER(cc)           # 修建地堡
 
         ################ 采矿 ######################
         #if not self.is_worker_rush:
@@ -141,151 +100,60 @@ class Lakers(sc2.BotAI):
                     await self.do(w.random.gather(a))
 
         ################ 训练 ######################
-        await self.train_WORKERS(cc)      # 训练农民
-        await self.train_MARINE()         # 训练机枪兵
-        #await self.train_MARAUDER()       # 训练掠夺者
-        #await self.train_REAPER()         # 训练收割者
-        #await self.train_GHOST()          # 训练幽灵
-        #await self.train_SIEGETANK()      # 训练坦克
-        await self.train_BANSHEE()        # 训练女妖战机
+        for cc in self.units(COMMANDCENTER).ready:
+            await self.train_WORKERS(cc)      # 训练农民
+
+        await self.train_MARINE(10)         # 训练机枪兵
+        await self.train_BANSHEE(2)         # 训练女妖战机
+
+        if self.attack_round >= self.warmup:
+            await self.train_MARAUDER(5)       # 训练掠夺者
+            await self.train_REAPER(5)         # 训练收割者
+            await self.train_GHOST(2)          # 训练幽灵
+            await self.train_SIEGETANK(5)      # 训练坦克
+
+        ############### 扩张 ######################
+        await self.expand_command_center(iteration)
 
         ############### 进攻 ###################
         # 当机枪兵大于16个时，进攻
-        #if self.units(MARINE).amount > 15:
+        #if self.units(MARINE).amount >= 15:
         #    for marine in self.units(MARINE):
         #        await self.do(marine.attack(self.enemy_start_locations[0]))
 
-        # BASE1: 机枪兵大于10个，女妖大于3，进攻
-        if self.units(MARINE).amount > 10 and self.units(BANSHEE).amount > 2:
-            for ma in self.units(MARINE).random_group_of(10):
-                await self.do(ma.attack(self.enemy_start_locations[0]))
-            for bs in self.units(BANSHEE).random_group_of(2):
-                await self.do(bs.attack(self.enemy_start_locations[0]))
-
-    # Start
-    async def base2(self, iteration):
-        cc = self.units(COMMANDCENTER).ready
-        if not cc.exists:
-            await self.worker_rush(iteration)
-            return
+        # 前三轮主动进攻：机枪兵大于10个，女妖大于3，进攻
+        if self.attack_round < self.warmup:
+            if self.units(MARINE).amount >= 10 and self.units(BANSHEE).amount >= 2:
+                for ma in self.units(MARINE).random_group_of(10):
+                    await self.do(ma.attack(self.enemy_start_locations[0]))
+                for bs in self.units(BANSHEE).random_group_of(2):
+                    await self.do(bs.attack(self.enemy_start_locations[0]))
+                self.attack_round += 1
         else:
-            if len(cc) == 2:
-                cc = cc[1]
-            else:
-                return
+            if self.units(MARINE).amount >= 20 and self.units(BANSHEE).amount >= 10:
+                for ma in self.units(MARINE).random_group_of(20):
+                    await self.do(ma.attack(self.enemy_start_locations[0]))
+                for bs in self.units(BANSHEE).random_group_of(10):
+                    await self.do(bs.attack(self.enemy_start_locations[0]))
 
-        #await self.worker_rush(iteration)
+        # 探测和策略调整
+        #await self.strategy(iteration)
+
+    async def strategy(self, iteration):
+        #print("Detect and adjustment.")
         await self.worker_detect(iteration)
-        #await self.marine_detect(iteration)
-        await self.defend_rush(iteration)
-
-        ############### 修建筑 ####################
-        await self.build_SUPPLYDEPOT(cc)      # 修建补给站
-        await self.build_BARRACKS(cc)         # 修建兵营
-        #await self.build_FACTORY(cc)          # 修建重工厂
-        #await self.build_STARPORT(cc)         # 修建星港
-        #await self.build_ENGINEERINGBAY(cc)   # 修建工程站
-        #wait self.build_SENSORTOWER(cc)      # 修建感应塔
-        #await self.build_MISSILETURRET(cc)    # 修建导弹他
-        #await self.build_GHOSTACADEMY(cc)     # 修建幽灵学院
-        #await self.build_BUNKER(cc)           # 修建地堡
-        await self.build_REFINERY(cc)         # 修建精炼厂
-
-        ############### 扩张 ######################
-        await self.expand_command_center(iteration)
-
-        ################ 采矿 ######################
-        #if not self.is_worker_rush:
-        await self.distribute_workers()
-        for a in self.units(REFINERY):
-            if a.assigned_harvesters < a.ideal_harvesters:
-                w = self.workers.closer_than(20, a)
-                if w.exists:
-                    await self.do(w.random.gather(a))
-
-        ################ 训练 ######################
-        await self.train_WORKERS(cc)      # 训练农民
-        await self.train_MARINE()         # 训练机枪兵
-        #await self.train_MARAUDER()       # 训练掠夺者
-        #await self.train_REAPER()         # 训练收割者
-        #await self.train_GHOST()          # 训练幽灵
-        #await self.train_SIEGETANK()      # 训练坦克
-        #await self.train_BANSHEE()        # 训练女妖战机
-
-        ############### 进攻 ###################
-        # 当机枪兵大于16个时，进攻
-        if self.units(MARINE).amount >= 15:
-            for marine in self.units(MARINE).random_group_of(15):
-                await self.do(marine.attack(self.enemy_start_locations[0]))
-
-        # BASE2: 机枪兵大于10个，女妖大于3，进攻
-        #if self.units(MARINE).amount > 10 and self.units(BANSHEE).amount > 2:
-        #    for ma in self.units(MARINE):
-        #        await self.do(ma.attack(self.enemy_start_locations[0]))
-        #    for bs in self.units(BANSHEE):
-        #        await self.do(bs.attack(self.enemy_start_locations[0]))
-
-    # Start
-    async def base3(self, iteration):
-        cc = self.units(COMMANDCENTER).ready
-        if not cc.exists:
-            await self.worker_rush(iteration)
-            return
-        else:
-            if len(cc) == 3:
-                cc = cc[2]
-            else:
-                return
-
-        #await self.worker_rush(iteration)
-        await self.worker_detect(iteration)
-        #await self.marine_detect(iteration)
-        await self.defend_rush(iteration)
-
-        ############### 修建筑 ####################
-        await self.build_SUPPLYDEPOT(cc)      # 修建补给站
-        await self.build_BARRACKS(cc)         # 修建兵营
-        #await self.build_STARPORT(cc)         # 修建星港
-        #await self.build_ENGINEERINGBAY(cc)   # 修建工程站
-        await self.build_SENSORTOWER(cc)      # 修建感应塔
-        await self.build_MISSILETURRET(cc)    # 修建导弹他
-        #await self.build_GHOSTACADEMY(cc)     # 修建幽灵学院
-        await self.build_BUNKER(cc)           # 修建地堡
-        await self.build_REFINERY(cc)         # 修建精炼厂
-
-        ############### 扩张 ######################
-        await self.expand_command_center(iteration)
-
-        ################ 采矿 ######################
-        #if not self.is_worker_rush:
-        await self.distribute_workers()
-        for a in self.units(REFINERY):
-            if a.assigned_harvesters < a.ideal_harvesters:
-                w = self.workers.closer_than(20, a)
-                if w.exists:
-                    await self.do(w.random.gather(a))
-
-        ################ 训练 ######################
-        await self.train_WORKERS(cc)      # 训练农民
-        await self.train_MARINE()         # 训练机枪兵
-        #await self.train_MARAUDER()       # 训练掠夺者
-        #await self.train_REAPER()         # 训练收割者
-        #await self.train_GHOST()          # 训练幽灵
-        await self.train_SIEGETANK()      # 训练坦克
-        #await self.train_BANSHEE()        # 训练女妖战机
-
-        ############### 进攻 ###################
-        # 当机枪兵大于16个时，进攻
-        #if self.units(MARINE).amount > 15:
-        #    for marine in self.units(MARINE):
-        #        await self.do(marine.attack(self.enemy_start_locations[0]))
-
-        # BASE3: 机枪兵大于10个，坦克大于5，进攻
-        if self.units(MARINE).amount >= 10 and self.units(SIEGETANK).amount >= 5:
-            for ma in self.units(MARINE).random_group_of(10):
-                await self.do(ma.attack(self.enemy_start_locations[0]))
-            for bs in self.units(BANSHEE).random_group_of(5):
-                await self.do(bs.attack(self.enemy_start_locations[0]))
+        if self.known_enemy_units.filter(lambda unit: unit.type_id is MARINE).amount >= 5:
+            self.Army.append(SIEGETANK)
+        if self.known_enemy_units.filter(lambda unit: unit.type_id is BANSHEE).amount >= 2:
+            self.Army.append(GHOST)
+            self.Army.append(MARINE)
+        if self.known_enemy_units.filter(lambda unit: unit.type_id is MARAUDER).amount >= 2:
+            self.Army.append(MARINE)
+        if self.known_enemy_units.filter(lambda unit: unit.type_id is GHOST).amount >= 2:
+            self.Army.append(BANSHEE)
+        if self.known_enemy_units.filter(lambda unit: unit.type_id is SIEGETANK).amount >= 2:
+            self.Army.append(BANSHEE)
+            self.Army.append(MARINE)
 
     ############ 功能函数 ################
     async def worker_rush(self, iteration):
@@ -300,7 +168,7 @@ class Lakers(sc2.BotAI):
     async def worker_detect(self, iteration):
         self.actions = []
         target = self.enemy_start_locations[0]
-        if iteration != 0 and iteration / 15 == 0:
+        if iteration != 0 and iteration / 500 == 0:
             for worker in self.workers:
                 self.actions.append(worker.attack(target))
                 break
@@ -324,29 +192,6 @@ class Lakers(sc2.BotAI):
                     if self.can_afford(SCV):
                         await self.do(cc.train(SCV))
 
-    async def build_rush_SUPPLYDEPOT(self, cc):
-        #   第一个房子，堵路口
-        if self.supply_left <= 10 and self.can_afford(SUPPLYDEPOT) and not self.already_pending(SUPPLYDEPOT): # and not self.first_supply_built:
-            supply_placement_positions = self.main_base_ramp.corner_depots
-            commander = self.units(COMMANDCENTER)
-            supply_placement_positions = {d for d in supply_placement_positions if commander.closest_distance_to(d) > 1}
-            target_supply_location = supply_placement_positions.pop()
-            await self.build(SUPPLYDEPOT, near=target_supply_location)
-        elif self.units(SUPPLYDEPOT).amount >= 1:
-            self.build_SUPPLYDEPOT(cc)
-            return
-
-    async def build_rush_BARRACKS(self, cc):
-        #双兵营,造在第一个房子附近，一起堵路口
-        if self.units(SUPPLYDEPOT).amount == 1:
-            first_supply = self.units(SUPPLYDEPOT).first
-
-        if self.units(BARRACKS).amount < 1 and self.can_afford(BARRACKS):
-            await self.build(BARRACKS, near = self.units(SUPPLYDEPOT).random)
-
-        if self.units(BARRACKS).amount == 1 and self.can_afford(BARRACKS):
-            await self.build(BARRACKS, near = self.units(BARRACKS).first)
-
     async def build_SUPPLYDEPOT(self, cc):
         if self.supply_left <= 3 and self.can_afford(SUPPLYDEPOT) and not self.already_pending(SUPPLYDEPOT): # and not self.first_supply_built:
             await self.build(SUPPLYDEPOT, near = cc.position.towards(self.game_info.map_center, 5))
@@ -369,24 +214,23 @@ class Lakers(sc2.BotAI):
                 await self.do(sp.build(FACTORYTECHLAB))
 
     async def build_STARPORT(self, cc):
-        if self.units(STARPORT).amount < 1 and self.units(FACTORY).ready.exists and self.can_afford(STARPORT) and not self.already_pending(STARPORT):
+        if self.units(STARPORT).amount < self.units(COMMANDCENTER).amount and self.units(FACTORY).ready.exists and self.can_afford(STARPORT) and not self.already_pending(STARPORT):
             await self.build(STARPORT, near = cc.position.towards(self.game_info.map_center, 20))
-        # 修建 STARPORTTECHLAB, 以建女妖
+        # 修建 STARPORTTECHLAB, 以训练女妖
         for sp in self.units(STARPORT).ready:
             if sp.add_on_tag == 0:
                 await self.do(sp.build(STARPORTTECHLAB))
 
     async def build_ENGINEERINGBAY(self, cc):
-        if self.units(ENGINEERINGBAY).amount < 1 and self.can_afford(ENGINEERINGBAY) and not self.already_pending(ENGINEERINGBAY):
+        if self.units(ENGINEERINGBAY).amount < self.units(COMMANDCENTER).amount and self.can_afford(ENGINEERINGBAY) and not self.already_pending(ENGINEERINGBAY):
             await self.build(ENGINEERINGBAY, near = cc.position.towards(self.game_info.map_center, 9))
 
     async def build_SENSORTOWER(self, cc):
-        if self.units(SENSORTOWER).amount < 2 and self.units(ENGINEERINGBAY).ready.exists and self.can_afford(SENSORTOWER) and not self.already_pending(SENSORTOWER):
+        if self.units(SENSORTOWER).amount < 2 * self.units(COMMANDCENTER).amount and self.units(ENGINEERINGBAY).ready.exists and self.can_afford(SENSORTOWER) and not self.already_pending(SENSORTOWER):
             await self.build(SENSORTOWER, near = cc.position.towards(self.game_info.map_center, 9))
 
     async def build_MISSILETURRET(self, cc):
-        if self.units(MISSILETURRET).amount < 4 and self.units(SENSORTOWER).ready.exists and self.can_afford(MISSILETURRET) and not self.already_pending(MISSILETURRET):
-            #await self.build(MISSILETURRET, near = cc.position.towards(self.game_info.map_center, 9))
+        if self.units(MISSILETURRET).amount < 2 * self.units(COMMANDCENTER).amount and self.units(SENSORTOWER).ready.exists and self.can_afford(MISSILETURRET) and not self.already_pending(MISSILETURRET):
             ramp = self.main_base_ramp.corner_depots
             cm = self.units(COMMANDCENTER)
             ramp = {d for d in ramp if cm.closest_distance_to(d) > 1}
@@ -394,11 +238,11 @@ class Lakers(sc2.BotAI):
             await self.build(MISSILETURRET, near=target)
 
     async def build_GHOSTACADEMY(self, cc):
-        if self.units(GHOSTACADEMY).amount < 1 and self.units(FACTORY).ready.exists and self.can_afford(GHOSTACADEMY) and not self.already_pending(GHOSTACADEMY):
+        if self.units(GHOSTACADEMY).amount < self.units(COMMANDCENTER).amount and self.units(FACTORY).ready.exists and self.can_afford(GHOSTACADEMY) and not self.already_pending(GHOSTACADEMY):
             await self.build(GHOSTACADEMY, near = cc.position.towards(self.game_info.map_center, 9))
 
     async def build_BUNKER(self, cc):
-        if self.units(BUNKER).amount < 4 and self.units(GHOSTACADEMY).ready.exists and self.can_afford(BUNKER) and not self.already_pending(BUNKER):
+        if self.units(BUNKER).amount < 2 * self.units(COMMANDCENTER).amount and self.units(GHOSTACADEMY).ready.exists and self.can_afford(BUNKER) and not self.already_pending(BUNKER):
             await self.build(BUNKER, near = cc.position.towards(self.game_info.map_center, 5))
 
     async def build_REFINERY(self, cc):
@@ -414,38 +258,38 @@ class Lakers(sc2.BotAI):
                 break
 
     # 训练机枪兵
-    async def train_MARINE(self):
-        if self.units(MARINE).idle.amount < 16 and self.can_afford(MARINE):
+    async def train_MARINE(self, number):
+        if self.units(MARINE).idle.amount < number and self.can_afford(MARINE):
             for barrack in self.units(BARRACKS).ready.noqueue:
                 await self.do(barrack.train(MARINE))
 
     # 训练掠夺者
-    async def train_MARAUDER(self):
-        if self.units(MARAUDER).idle.amount < 5 and self.can_afford(MARAUDER):
+    async def train_MARAUDER(self, number):
+        if self.units(MARAUDER).idle.amount < number and self.can_afford(MARAUDER):
             for marauder in self.units(BARRACKS).ready:
                 await self.do(marauder.train(MARAUDER))
 
     # 训练收割者
-    async def train_REAPER(self):
-        if self.units(REAPER).idle.amount < 5 and self.can_afford(REAPER):
+    async def train_REAPER(self, number):
+        if self.units(REAPER).idle.amount < number and self.can_afford(REAPER):
             for re in self.units(BARRACKS).ready:
                 await self.do(re.train(REAPER))
 
     # 训练幽灵
-    async def train_GHOST(self):
-        if self.units(GHOST).idle.amount < 5 and self.can_afford(GHOST):
+    async def train_GHOST(self, number):
+        if self.units(GHOST).idle.amount < number and self.can_afford(GHOST):
             for gst in self.units(GHOSTACADEMY).ready:
                 await self.do(gst.train(GHOST))
 
     # 训练坦克
-    async def train_SIEGETANK(self):
-        if self.units(SIEGETANK).idle.amount < 5 and self.can_afford(SIEGETANK):
+    async def train_SIEGETANK(self, number):
+        if self.units(SIEGETANK).idle.amount < number and self.can_afford(SIEGETANK):
             for st in self.units(FACTORY).ready:
                 await self.do(st.train(SIEGETANK))
 
     # 训练女妖战机
-    async def train_BANSHEE(self):
-        if self.units(BANSHEE).idle.amount < 5 and self.can_afford(BANSHEE):
+    async def train_BANSHEE(self, number):
+        if self.units(BANSHEE).idle.amount < number and self.can_afford(BANSHEE):
             for bs in self.units(STARPORT).ready:
                 await self.do(bs.train(BANSHEE))
 
@@ -463,26 +307,27 @@ class Lakers(sc2.BotAI):
 
             # 如果有7个及以上的威胁，调动所有农民防守，如果有机枪兵也投入防守
             if len(threats) >= 7:
+                self.attack_round += 1
                 self.is_defend_rush = True
+                self.need_counter_attack = True
                 defence_target = threats[0].position.random_on_distance(random.randrange(1, 3))
                 for pr in self.units(SCV):
                     self.combinedActions.append(pr.attack(defence_target))
                 for ma in self.units(MARINE).random_group_of(round(len(self.units(MARINE)) / 2)):
                     self.combinedActions.append(ma.attack(defence_target))
 
-                # 如果敌军拥有6个以上的农民，认为对方在使用农民rush，所以对方发展必定滞后，所以后面直接rush回去
-                #if self.known_enemy_units.filter(lambda unit: unit.type_id is SCV).amount >= 6:
-                #    self.is_worker_rush = True
-
             # 如果有2-6个威胁，调动一半农民防守，如果有机枪兵也投入防守
             elif 1 < len(threats) < 7:
+                self.attack_round += 1
                 self.is_defend_rush = True
                 defence_target = threats[0].position.random_on_distance(random.randrange(1, 3))
                 self.scv1 = self.units(SCV).random_group_of(round(len(self.units(SCV)) / 2))
                 for scv in self.scv1:
                     self.combinedActions.append(scv.attack(defence_target))
+                for ma in self.units(MARINE).random_group_of(round(len(self.units(MARINE)) / 2)):
+                    self.combinedActions.append(ma.attack(defence_target))
 
-            # 只有一个威胁，视为骚扰，调动一个农民防守，如果有机枪兵也投入防守
+            # 只有一个威胁，视为骚扰，调动一个农民防守
             elif len(threats) == 1 and not self.is_defend_rush:
                 self.is_defend_rush = True
                 defence_target = threats[0].position.random_on_distance(random.randrange(1, 3))
@@ -491,26 +336,22 @@ class Lakers(sc2.BotAI):
                     self.combinedActions.append(scv.attack(defence_target))
 
             elif len(threats) == 0 and self.is_defend_rush:
-                #if self.is_worker_rush:
-                #    # 以彼之道，还施彼身
-                #    print("We will bring you glory!!")
-                #    for worker in self.workers:
-                #        self.combinedActions.append(worker.attack(self.enemy_start_locations[0]))
-                #else:
                 # 继续采矿
                 for worker in self.workers:
                     closest_mineral_patch = self.state.mineral_field.closest_to(worker)
                     self.combinedActions.append(worker.gather(closest_mineral_patch))
 
                 # 小规模防守反击
-                if self.units(MARINE).amount > 5:
-                    self.ca_ma = self.units(MARINE).random_group_of(5)
-                    for ma in self.ca_ma:
-                        self.combinedActions.append(ma.attack(self.enemy_start_locations[0]))
-                if self.units(BANSHEE).amount > 2:
-                    self.ca_bs = self.units(BANSHEE).random_group_of(2)
-                    for bs in self.ca_bs:
-                        self.combinedActions.append(bs.attack(self.enemy_start_locations[0]))
+                if self.need_counter_attack:
+                    self.need_counter_attack = False
+                    if self.units(MARINE).amount > 5:
+                        self.ca_ma = self.units(MARINE).random_group_of(5)
+                        for ma in self.ca_ma:
+                            self.combinedActions.append(ma.attack(self.enemy_start_locations[0]))
+                    if self.units(BANSHEE).amount > 2:
+                        self.ca_bs = self.units(BANSHEE).random_group_of(2)
+                        for bs in self.ca_bs:
+                            self.combinedActions.append(bs.attack(self.enemy_start_locations[0]))
 
                 self.is_worker_rush = False
                 self.is_defend_rush = False
@@ -520,7 +361,7 @@ class Lakers(sc2.BotAI):
             self.is_defend_rush = False
 
     async def expand_command_center(self, iteration):
-        if self.units(COMMANDCENTER).exists and ((iteration > 500 and self.units(COMMANDCENTER).amount < 2) or (iteration > 2000 and self.units(COMMANDCENTER).amount < 3)) and self.can_afford(COMMANDCENTER):
+        if self.units(COMMANDCENTER).exists and (iteration > self.units(COMMANDCENTER).amount * 1500) and self.can_afford(COMMANDCENTER):
             location = await self.get_next_expansion()
             await self.build(COMMANDCENTER, near=location, max_distance=10, random_alternative=False, placement_step=1)
 
