@@ -275,11 +275,14 @@ class LakersBot(sc2.BotAI):
 
     async def build_BARRACKS(self, cc):
         if self.units(BARRACKS).amount == 0 and self.can_afford(BARRACKS):
-            await self.build(BARRACKS, near=cc.position.towards(self.game_info.map_center, 20, True))#near = cc.position.towards(self.game_info.map_center, 20))
+            await self.build(BARRACKS, near=cc.position.towards(self.game_info.map_center, 16, True))#near = cc.position.towards(self.game_info.map_center, 20))
         if self.units(BARRACKS).amount < self.units(COMMANDCENTER).ready.amount * 2 and self.units(FACTORY).ready.exists and self.can_afford(BARRACKS) and not self.already_pending(BARRACKS):
-            await self.build(BARRACKS, near=cc.position.towards(self.game_info.map_center, 20, True))#near = cc.position.towards(self.game_info.map_center, 20))
+            await self.build(BARRACKS, near=cc.position.towards(self.game_info.map_center, 16, True))#near = cc.position.towards(self.game_info.map_center, 20))
         #if self.units(BARRACKS).amount < 2 and self.units(STARPORT).ready.exists and self.can_afford(BARRACKS):
         #    await self.build(BARRACKS, near = cc.position.towards(self.game_info.map_center, 20))
+        for sp in self.units(BARRACKS).ready:
+            if sp.add_on_tag == 0:
+                await self.do(sp.build(BARRACKSTECHLAB
 
     async def build_FACTORY(self, cc):
         if self.units(FACTORY).amount < self.units(COMMANDCENTER).amount and self.units(BARRACKS).ready.exists and self.can_afford(FACTORY) and not self.already_pending(FACTORY):
@@ -299,7 +302,7 @@ class LakersBot(sc2.BotAI):
 
     async def build_ENGINEERINGBAY(self, cc):
         if self.units(ENGINEERINGBAY).amount < 1 and self.can_afford(ENGINEERINGBAY) and not self.already_pending(ENGINEERINGBAY) and self.units(BARRACKS).amount >= 1:
-            await self.build(ENGINEERINGBAY, near = cc.position.towards(self.game_info.map_center, 20))
+            await self.build(ENGINEERINGBAY, near = cc.position.towards(self.game_info.map_center, 5))
 
     async def build_SENSORTOWER(self, cc):
         if self.units(SENSORTOWER).amount < 2 * self.units(COMMANDCENTER).amount and self.units(ENGINEERINGBAY).ready.exists and self.can_afford(SENSORTOWER) and not self.already_pending(SENSORTOWER):
