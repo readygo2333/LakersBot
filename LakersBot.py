@@ -46,7 +46,8 @@ class LakersBot(sc2.BotAI):
         self.engineeringUpgrades = [ENGINEERINGBAYRESEARCH_TERRANINFANTRYWEAPONSLEVEL1,ENGINEERINGBAYRESEARCH_TERRANINFANTRYARMORLEVEL1,
                                     ENGINEERINGBAYRESEARCH_TERRANINFANTRYWEAPONSLEVEL2,ENGINEERINGBAYRESEARCH_TERRANINFANTRYARMORLEVEL2,
                                     ENGINEERINGBAYRESEARCH_TERRANINFANTRYWEAPONSLEVEL3,ENGINEERINGBAYRESEARCH_TERRANINFANTRYARMORLEVEL3]
-        self.probe = None
+        self.is_under_attack = False
+        self.gogogo = False
 
     async def on_step(self, iteration):
         #每次迭代前清空，否则有BUG
@@ -56,12 +57,10 @@ class LakersBot(sc2.BotAI):
         await self.banshee_visible_handler()
         await self.upgrader()
 
-    # Start
     async def command_center(self, iteration):
         # 防守
         await self.defend_rush(iteration)
         await self.defend_push()
-        await self.first_round()
 
         # 探测和策略调整
         await self.strategy(iteration)
@@ -141,26 +140,21 @@ class LakersBot(sc2.BotAI):
                 if w.exists:
                     await self.do(w.random.gather(a))
 
-        await self.scan_move()
+        #await self.scan_move()
 
         ############### 扩张 ######################
         await self.expand_command_center(iteration)
 
-    async def first_round(self):
-        ############### 进攻 ###################
-        # 第一伦主动进攻：机枪兵大于10个，女妖大于3，进攻
-        if self.attack_round < self.warmup:
-            if self.units(MARINE).amount >= 10 and self.units(BANSHEE).amount >= 2:
-                await self.army_attack(MARINE, 10, self.enemy_start_locations[0])
-                await self.army_attack(BANSHEE, 2, self.enemy_start_locations[0])
-                self.attack_round += 1
-                await self.chat_send("gogogo！！！")
-                await self.do_actions(self.combinedActions)
-
     async def army_train(self, unit_type, number):
         if self.units(unit_type).idle.amount < number:
             for st in self.units(self.factory[unit_type]):
-                if self.can_afford(unit_type):
+                if self.factory[unit_type] == BARRACKS or self.factory[unit_type] == FACTORY or self.factory[unit_type] == STARPORT:
+                    if st.add_on_tag != 0 and self.can_afford(unit_type):
+                        self.combinedActions.append(st.train(unit_type))
+                        if number <= 0:
+                            break
+                        number = number - 1
+                elif self.can_afford(unit_type):
                     self.combinedActions.append(st.train(unit_type))
                     if number <= 0:
                         break
@@ -169,25 +163,25 @@ class LakersBot(sc2.BotAI):
 
     async def army_attack(self, unit_type, number, target):
         if unit_type == MARINE or unit_type == MARAUDER or unit_type == REAPER or unit_type == GHOST or unit_type == SIEGETANK or unit_type == BANSHEE:
-            if self.units(unit_type).ready.amount <= number:
-                for u in self.units(unit_type).ready:
-                    self.combinedActions.append(u.stop())
+            if self.units(unit_type).idle.amount <= number:
+                for u in self.units(unit_type).idle:
+                    #self.combinedActions.append(u.stop())
                     self.combinedActions.append(u.attack(target))
             else:
-                ug = self.units(unit_type).ready.random_group_of(number)
+                ug = self.units(unit_type).idle.random_group_of(number)
                 for u in ug:
-                    self.combinedActions.append(u.stop())
+                    #self.combinedActions.append(u.stop())
                     self.combinedActions.append(u.attack(target))
             await self.do_actions(self.combinedActions)
 
     def my_army(self):
-        return self.units(MARINE).idle.amount + self.units(MARAUDER).idle.amount\
-            + self.units(REAPER).idle.amount + self.units(SIEGETANK).idle.amount + self.units(BANSHEE).idle.amount
+        return self.units(MARINE).ready.amount + self.units(MARAUDER).ready.amount\
+            + self.units(REAPER).ready.amount + self.units(SIEGETANK).ready.amount + self.units(BANSHEE).ready.amount
 
     async def strategy(self, iteration):
 
-        await self.worker_detect(iteration)
-        #await self.marine_detect(iteration)
+        #await self.worker_detect(iteration)
+        await self.marine_detect(iteration)
 
         ################ 训练 ######################
         # 保持至少有5个枪兵
@@ -217,11 +211,27 @@ class LakersBot(sc2.BotAI):
         if st_n >= self.counter_units[SIEGETANK][1]:
             await self.army_train(self.counter_units[SIEGETANK][0], self.counter_units[SIEGETANK][2])
 
-        # 进攻
-        if self.my_army() + 10 >= len(self.known_enemy_units):
-            if len(self.known_enemy_units) > 10 or self.my_army() > 20:
+        ############### 进攻 ###################
+        # 第一伦主动进攻：机枪兵大于10个，女妖大于3，进攻
+        if self.attack_round < self.warmup:
+            if self.units(MARINE).ready.amount >= 10 and self.units(BANSHEE).ready.amount >= 2:
+                await self.army_attack(MARINE, 10, self.enemy_start_locations[0])
+                await self.army_attack(BANSHEE, 2, self.enemy_start_locations[0])
+                self.attack_round += 1
+                await self.chat_send("热热身~")
+
+        else:
+            # 如果我的军力占优或者相当，派出 80% 军队进攻
+            if self.my_army() >= len(self.known_enemy_units) and self.my_army() > 15:
+                await self.chat_send("Let's Rock!!!")
                 for u in self.army_units:
-                    await self.army_attack(u, round(self.units(u).idle.amount / 2), self.enemy_start_locations[0])
+                    await self.army_attack(u, round(self.units(u).idle.amount * 4 / 5), self.enemy_start_locations[0])
+
+            if self.gogogo == True:
+                self.gogogo = False
+                await self.chat_send("gogogo!!!")
+                for u in self.army_units:
+                    await self.army_attack(u, self.units(u).idle.amount, self.enemy_start_locations[0])
 
     ############ 功能函数 ################
     #把空闲农民派到离指定基地最近的矿上
@@ -243,16 +253,16 @@ class LakersBot(sc2.BotAI):
     async def worker_detect(self, iteration):
         self.actions = []
         target = self.enemy_start_locations[0]
-        if iteration != 0 and iteration % 500 == 0:
+        if iteration != 0 and self.time % 50 == 0:
             for worker in self.workers:
-                #await self.chat_send("We will bring you glory!!")
+                await self.chat_send("Right away, sir.")
                 self.actions.append(worker.attack(target))
                 await self.do_actions(self.actions)
                 break
 
     async def marine_detect(self, iteration):
         target = self.enemy_start_locations[0]
-        if iteration != 0 and self.time / 20 == 0:
+        if iteration != 0 and self.time % 50 == 0:
             await self.chat_send("视死如归！！！")
             await self.army_attack(MARINE, 1, target)
 
@@ -267,7 +277,7 @@ class LakersBot(sc2.BotAI):
 
     async def build_SUPPLYDEPOT(self, cc):
         if self.supply_left <= 7 and self.can_afford(SUPPLYDEPOT) and not self.already_pending(SUPPLYDEPOT): # and not self.first_supply_built:
-            #await self.build(SUPPLYDEPOT, near = cc.position.towards(self.game_info.map_center, 13))
+            #await self.build(SUPPLYDEPOT, near = cc.position.towards(self.game_info.map_center, 20))
             await self.build(SUPPLYDEPOT, near = self.find_ramp_corner(cc))
             for sd in self.units(SUPPLYDEPOT).ready:
                 self.combinedActions.append(sd(MORPH_SUPPLYDEPOT_LOWER))
@@ -275,18 +285,20 @@ class LakersBot(sc2.BotAI):
 
     async def build_BARRACKS(self, cc):
         if self.units(BARRACKS).amount == 0 and self.can_afford(BARRACKS):
-            await self.build(BARRACKS, near=cc.position.towards(self.game_info.map_center, 16, True))#near = cc.position.towards(self.game_info.map_center, 20))
+            await self.build(BARRACKS, near=cc.position.towards(self.game_info.map_center, 14, True)) #near = cc.position.towards(self.game_info.map_center, 20))
         if self.units(BARRACKS).amount < self.units(COMMANDCENTER).ready.amount * 2 and self.units(FACTORY).ready.exists and self.can_afford(BARRACKS) and not self.already_pending(BARRACKS):
-            await self.build(BARRACKS, near=cc.position.towards(self.game_info.map_center, 16, True))#near = cc.position.towards(self.game_info.map_center, 20))
+            await self.build(BARRACKS, near=cc.position.towards(self.game_info.map_center, 14, True)) #near = cc.position.towards(self.game_info.map_center, 20))
         #if self.units(BARRACKS).amount < 2 and self.units(STARPORT).ready.exists and self.can_afford(BARRACKS):
         #    await self.build(BARRACKS, near = cc.position.towards(self.game_info.map_center, 20))
+        # 修建 FACTORYTECHLAB, 以建掠夺者和幽灵
         for sp in self.units(BARRACKS).ready:
             if sp.add_on_tag == 0:
-                await self.do(sp.build(BARRACKSTECHLAB
+                await self.do(sp.build(BARRACKSTECHLAB))
 
     async def build_FACTORY(self, cc):
         if self.units(FACTORY).amount < self.units(COMMANDCENTER).amount and self.units(BARRACKS).ready.exists and self.can_afford(FACTORY) and not self.already_pending(FACTORY):
-            await self.build(FACTORY, near=cc.position.towards(self.game_info.map_center, 12, True))
+            #await self.build(FACTORY, near=cc.position.towards(self.game_info.map_center, 12, True))
+            await self.build(FACTORY, near=self.main_base_ramp.barracks_correct_placement)
         # 修建 FACTORYTECHLAB, 以建造坦克
         for sp in self.units(FACTORY).ready:
             if sp.add_on_tag == 0:
@@ -302,7 +314,7 @@ class LakersBot(sc2.BotAI):
 
     async def build_ENGINEERINGBAY(self, cc):
         if self.units(ENGINEERINGBAY).amount < 1 and self.can_afford(ENGINEERINGBAY) and not self.already_pending(ENGINEERINGBAY) and self.units(BARRACKS).amount >= 1:
-            await self.build(ENGINEERINGBAY, near = cc.position.towards(self.game_info.map_center, 5))
+            await self.build(ENGINEERINGBAY, near = cc.position.towards(self.game_info.map_center, 30))
 
     async def build_SENSORTOWER(self, cc):
         if self.units(SENSORTOWER).amount < 2 * self.units(COMMANDCENTER).amount and self.units(ENGINEERINGBAY).ready.exists and self.can_afford(SENSORTOWER) and not self.already_pending(SENSORTOWER):
@@ -350,25 +362,29 @@ class LakersBot(sc2.BotAI):
             threats = []
             for structure_type in self.defend_around:
                 for structure in self.units(structure_type):
-                    threats += self.known_enemy_units.closer_than(11, structure.position)
+                    threats += self.known_enemy_units.closer_than(30, structure.position)
                     if len(threats) > 0:
                         break
                 if len(threats) > 0:
                     break
 
-            if len(threats) > 7:
+            if 0 < len(threats) < 7:
+                self.is_under_attack = True
                 defence_target = threats[0].position.random_on_distance(random.randrange(1, 3))
-                for am in self.units(MARINE).idle:
-                    self.combinedActions.append(am.attack(defence_target))
-                for am in self.units(MARAUDER).idle:
-                    self.combinedActions.append(am.attack(defence_target))
-                for am in self.units(REAPER).idle:
-                    self.combinedActions.append(am.attack(defence_target))
-                for am in self.units(SIEGETANK).idle:
-                    self.combinedActions.append(am.attack(defence_target))
-                for am in self.units(BANSHEE).idle:
-                    self.combinedActions.append(am.attack(defence_target))
-                await self.do_actions(self.combinedActions)
+                await self.army_attack(MARINE, 0, defence_target)
+                await self.army_attack(BANSHEE, 0, defence_target)
+            elif len(threats) >= 7:
+                self.is_under_attack = True
+                defence_target = threats[0].position.random_on_distance(random.randrange(1, 3))
+                await self.army_attack(MARINE, 0, defence_target)
+                await self.army_attack(MARAUDER, 0, defence_target)
+                await self.army_attack(REAPER, 0, defence_target)
+                await self.army_attack(SIEGETANK, 0, defence_target)
+                await self.army_attack(BANSHEE, 0, defence_target)
+            elif len(threats) == 0 and self.is_under_attack == True:
+                self.is_under_attack = False
+                self.gogogo = True
+
 
     async def defend_rush(self, iteration):
         # 如果兵力小于15，认为是前期的rush
@@ -376,7 +392,7 @@ class LakersBot(sc2.BotAI):
             threats = []
             for structure_type in self.defend_around:
                 for structure in self.units(structure_type):
-                    threats += self.known_enemy_units.closer_than(11, structure.position)
+                    threats += self.known_enemy_units.closer_than(30, structure.position)
                     if len(threats) > 0:
                         break
                 if len(threats) > 0:
@@ -390,8 +406,7 @@ class LakersBot(sc2.BotAI):
                 defence_target = threats[0].position.random_on_distance(random.randrange(1, 3))
                 for pr in self.units(SCV):
                     self.combinedActions.append(pr.attack(defence_target))
-                for ma in self.units(MARINE).random_group_of(round(len(self.units(MARINE)) / 2)):
-                    self.combinedActions.append(ma.attack(defence_target))
+                await self.army_attack(MARINE, round(len(self.units(MARINE)) / 2, defence_target))
 
             # 如果有2-6个威胁，调动一半农民防守，如果有机枪兵也投入防守
             elif 1 < len(threats) < 7:
@@ -401,8 +416,7 @@ class LakersBot(sc2.BotAI):
                 self.scv1 = self.units(SCV).random_group_of(round(len(self.units(SCV)) / 2))
                 for scv in self.scv1:
                     self.combinedActions.append(scv.attack(defence_target))
-                for ma in self.units(MARINE).random_group_of(round(len(self.units(MARINE)) / 2)):
-                    self.combinedActions.append(ma.attack(defence_target))
+                await self.army_attack(MARINE, round(len(self.units(MARINE)) / 2, defence_target))
 
             # 只有一个威胁，视为骚扰，调动一个农民防守
             elif len(threats) == 1 and not self.is_defend_rush:
@@ -421,14 +435,11 @@ class LakersBot(sc2.BotAI):
                 # 小规模防守反击
                 if self.need_counter_attack:
                     self.need_counter_attack = False
+                    await self.chat_send("Right away, sir!!!")
                     if self.units(MARINE).amount > 5:
-                        self.ca_ma = self.units(MARINE).random_group_of(5)
-                        for ma in self.ca_ma:
-                            self.combinedActions.append(ma.attack(self.enemy_start_locations[0]))
+                        await self.army_attack(MARINE, 5, self.enemy_start_locations[0])
                     if self.units(BANSHEE).amount > 2:
-                        self.ca_bs = self.units(BANSHEE).random_group_of(2)
-                        for bs in self.ca_bs:
-                            self.combinedActions.append(bs.attack(self.enemy_start_locations[0]))
+                        await self.army_attack(BANSHEE, 2, self.enemy_start_locations[0])
 
                 self.is_worker_rush = False
                 self.is_defend_rush = False
@@ -518,29 +529,35 @@ class LakersBot(sc2.BotAI):
                 #self.combinedActions.append(mr.stop())
                 #self.combinedActions.append(mr(SCAN_MOVE, location))
                 self.combinedActions.append(mr.move(location))
+                self.combinedActions.append(mr.stop())
         for mr in self.units(MARAUDER):
             if mr.is_idle:
                 #self.combinedActions.append(mr.stop())
                 #self.combinedActions.append(mr(SCAN_MOVE, location))
                 self.combinedActions.append(mr.move(location))
+                self.combinedActions.append(mr.stop())
         for mr in self.units(REAPER):
             if mr.is_idle:
                 #self.combinedActions.append(mr.stop())
                 #self.combinedActions.append(mr(SCAN_MOVE, location))
                 self.combinedActions.append(mr.move(location))
+                self.combinedActions.append(mr.stop())
         for mr in self.units(GHOST):
             if mr.is_idle:
                 #self.combinedActions.append(mr.stop())
                 #self.combinedActions.append(mr(SCAN_MOVE, location))
                 self.combinedActions.append(mr.move(location))
+                self.combinedActions.append(mr.stop())
         for mr in self.units(SIEGETANK):
             if mr.is_idle:
                 #self.combinedActions.append(mr.stop())
                 #self.combinedActions.append(mr(SCAN_MOVE, location))
                 self.combinedActions.append(mr.move(location))
+                self.combinedActions.append(mr.stop())
         for mr in self.units(BANSHEE):
             if mr.is_idle:
                 #self.combinedActions.append(mr.stop())
                 #self.combinedActions.append(mr(SCAN_MOVE, location))
                 self.combinedActions.append(mr.move(location))
+                self.combinedActions.append(mr.stop())
         await self.do_actions(self.combinedActions)
