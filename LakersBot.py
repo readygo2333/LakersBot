@@ -406,7 +406,7 @@ class LakersBot(sc2.BotAI):
                 defence_target = threats[0].position.random_on_distance(random.randrange(1, 3))
                 for pr in self.units(SCV):
                     self.combinedActions.append(pr.attack(defence_target))
-                await self.army_attack(MARINE, round(len(self.units(MARINE)) / 2, defence_target))
+                await self.army_attack(MARINE, round(len(self.units(MARINE)) / 2), defence_target)
 
             # 如果有2-6个威胁，调动一半农民防守，如果有机枪兵也投入防守
             elif 1 < len(threats) < 7:
@@ -416,7 +416,7 @@ class LakersBot(sc2.BotAI):
                 self.scv1 = self.units(SCV).random_group_of(round(len(self.units(SCV)) / 2))
                 for scv in self.scv1:
                     self.combinedActions.append(scv.attack(defence_target))
-                await self.army_attack(MARINE, round(len(self.units(MARINE)) / 2, defence_target))
+                await self.army_attack(MARINE, round(len(self.units(MARINE)) / 2), defence_target)
 
             # 只有一个威胁，视为骚扰，调动一个农民防守
             elif len(threats) == 1 and not self.is_defend_rush:
