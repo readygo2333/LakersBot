@@ -263,7 +263,7 @@ class LakersBot(sc2.BotAI):
     async def marine_detect(self, iteration):
         target = self.enemy_start_locations[0]
         if iteration != 0 and self.time % 50 == 0:
-            await self.chat_send("视死如归！！！")
+            #await self.chat_send("视死如归！！！")
             await self.army_attack(MARINE, 1, target)
 
     async def train_WORKERS(self, cc):
@@ -369,7 +369,6 @@ class LakersBot(sc2.BotAI):
                     break
 
             if 0 < len(threats) < 7:
-                self.is_under_attack = True
                 defence_target = threats[0].position.random_on_distance(random.randrange(1, 3))
                 await self.army_attack(MARINE, 0, defence_target)
                 await self.army_attack(BANSHEE, 0, defence_target)
