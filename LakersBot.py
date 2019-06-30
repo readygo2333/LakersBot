@@ -218,18 +218,18 @@ class LakersBot(sc2.BotAI):
                 await self.army_attack(MARINE, 10, self.enemy_start_locations[0])
                 await self.army_attack(BANSHEE, 2, self.enemy_start_locations[0])
                 self.attack_round += 1
-                await self.chat_send("热热身~")
+                #await self.chat_send("热热身~")
 
         else:
             # 如果我的军力占优或者相当，派出 80% 军队进攻
             if self.my_army() >= len(self.known_enemy_units) and self.my_army() > 15:
-                await self.chat_send("Let's Rock!!!")
+                #await self.chat_send("Let's Rock!!!")
                 for u in self.army_units:
                     await self.army_attack(u, round(self.units(u).idle.amount * 4 / 5), self.enemy_start_locations[0])
 
             if self.gogogo == True:
                 self.gogogo = False
-                await self.chat_send("gogogo!!!")
+                #await self.chat_send("gogogo!!!")
                 for u in self.army_units:
                     await self.army_attack(u, self.units(u).idle.amount, self.enemy_start_locations[0])
 
@@ -245,7 +245,7 @@ class LakersBot(sc2.BotAI):
         self.actions = []
         target = self.enemy_start_locations[0]
         if iteration == 0:
-            await self.chat_send("We will bring you glooooooooooooory!!")
+            #await self.chat_send("We will bring you glooooooooooooory!!")
             for worker in self.workers:
                 self.actions.append(worker.attack(target))
         await self.do_actions(self.actions)
@@ -255,7 +255,7 @@ class LakersBot(sc2.BotAI):
         target = self.enemy_start_locations[0]
         if iteration != 0 and self.time % 50 == 0:
             for worker in self.workers:
-                await self.chat_send("Right away, sir.")
+                #await self.chat_send("Right away, sir.")
                 self.actions.append(worker.attack(target))
                 await self.do_actions(self.actions)
                 break
@@ -434,7 +434,7 @@ class LakersBot(sc2.BotAI):
                 # 小规模防守反击
                 if self.need_counter_attack:
                     self.need_counter_attack = False
-                    await self.chat_send("Right away, sir!!!")
+                    #await self.chat_send("Right away, sir!!!")
                     if self.units(MARINE).amount > 5:
                         await self.army_attack(MARINE, 5, self.enemy_start_locations[0])
                     if self.units(BANSHEE).amount > 2:
