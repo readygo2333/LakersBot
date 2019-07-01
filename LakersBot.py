@@ -17,7 +17,7 @@ class LakersBot(sc2.BotAI):
         self.enemy_expand_location = None
         self.first_supply_built=False
         self.cloak_started = False
-        self.upgradesIndex = 0        
+        self.upgradesIndex = 0
         #self.stage = "early_rush"
         self.counter_units = {
             MARINE: [SIEGETANK, 3, 1],
@@ -240,7 +240,7 @@ class LakersBot(sc2.BotAI):
             mf = self.state.mineral_field.closest_to(cc.position)
             self.combinedActions.append(idle_worker.gather(mf))
         await self.do_actions(self.combinedActions)
-        
+
     async def worker_rush(self, iteration):
         self.actions = []
         target = self.enemy_start_locations[0]
@@ -294,6 +294,10 @@ class LakersBot(sc2.BotAI):
         for sp in self.units(BARRACKS).ready:
             if sp.add_on_tag == 0:
                 await self.do(sp.build(BARRACKSTECHLAB))
+            else:
+                techl = self.units()
+                await self.do(sp.build(BARRACKSTECHLABRESEARCH_STIMPACK))
+                await self.do(sp.build(RESEARCH_COMBATSHIELD))
 
     async def build_FACTORY(self, cc):
         if self.units(FACTORY).amount < self.units(COMMANDCENTER).amount and self.units(BARRACKS).ready.exists and self.can_afford(FACTORY) and not self.already_pending(FACTORY):
@@ -480,7 +484,7 @@ class LakersBot(sc2.BotAI):
                 else:
                     threats.clear()
         await self.do_actions(self.combinedActions)
-            
+
 
     async def banshee_visible_handler(self):
         # 周边11(女妖视野)距离内有敌人，且没有导弹塔，隐形，否则恢复正常状态。
@@ -504,13 +508,21 @@ class LakersBot(sc2.BotAI):
                         if banshee.energy > 30:
                             self.combinedActions.append(banshee(BEHAVIOR_CLOAKOFF_BANSHEE))
         await self.do_actions(self.combinedActions)
-        
+
     async def upgrader(self):
         if not self.cloak_started and self.units(STARPORTTECHLAB).ready.exists and self.can_afford(RESEARCH_BANSHEECLOAKINGFIELD):
             upgrader = self.units(STARPORTTECHLAB).ready.first
             await self.do(upgrader(RESEARCH_BANSHEECLOAKINGFIELD))
             self.cloak_started = True
-            
+
+        if self.units(BARRACKSTECHLAB).ready.exists:
+            if self.can_afford(BARRACKSTECHLABRESEARCH_STIMPACK):
+                for u in self.units(BARRACKSTECHLAB).ready:
+                    await self.do(u(BARRACKSTECHLABRESEARCH_STIMPACK))
+            if self.can_afford(RESEARCH_COMBATSHIELD):
+                for u in self.units(BARRACKSTECHLAB).ready:
+                    await self.do(u(RESEARCH_COMBATSHIELD))
+
         #机枪兵按规则只能升1级
         if self.upgradesIndex < 2:
             for EB in self.units(ENGINEERINGBAY).ready.noqueue:
