@@ -149,7 +149,7 @@ class LakersBot(sc2.BotAI):
         if self.units(unit_type).idle.amount < number:
             for st in self.units(self.factory[unit_type]):
                 if self.factory[unit_type] == BARRACKS or self.factory[unit_type] == FACTORY or self.factory[unit_type] == STARPORT:
-                    if st.add_on_tag != 0 and self.can_afford(unit_type):
+                    if st.add_on_tag != 0 and self.can_afford(unit_type) and st.noqueue:
                         self.combinedActions.append(st.train(unit_type))
                         if number <= 0:
                             break
