@@ -147,9 +147,9 @@ class LakersBot(sc2.BotAI):
         await self.expand_command_center(iteration)
 
         ############### 雷达 ######################
-        for cc in self.units(COMMANDCENTER).ready:
-            if self.can_afford(UPGRADETOORBITAL_ORBITALCOMMAND):
-                await self.do(cc(UPGRADETOORBITAL_ORBITALCOMMAND))
+        #for cc in self.units(COMMANDCENTER).ready:
+        #    if self.can_afford(UPGRADETOORBITAL_ORBITALCOMMAND):
+        #        await self.do(cc(UPGRADETOORBITAL_ORBITALCOMMAND))
 
     async def army_train(self, unit_type, number):
         if self.units(unit_type).idle.amount < number:
@@ -386,7 +386,7 @@ class LakersBot(sc2.BotAI):
                     break
 
             if 0 < len(threats) < 7:
-                await self.scanner_sweep()
+                #await self.scanner_sweep()
                 defence_target = threats[0].position.random_on_distance(random.randrange(1, 3))
                 await self.army_attack(MARINE, 0, defence_target)
                 await self.army_attack(BANSHEE, 0, defence_target)
@@ -398,15 +398,15 @@ class LakersBot(sc2.BotAI):
                 await self.army_attack(REAPER, 0, defence_target)
                 await self.army_attack(SIEGETANK, 0, defence_target)
                 await self.army_attack(BANSHEE, 0, defence_target)
-                await self.scanner_sweep()
+                #await self.scanner_sweep()
             elif len(threats) == 0 and self.is_under_attack == True:
                 self.is_under_attack = False
                 self.gogogo = True
 
-    async def scanner_sweep(self):
-        for cc in self.units(COMMANDCENTER).ready:
-            self.combinedActions.append(cc(SCANNERSWEEP_SCAN, cc.position.towards(self.game_info.map_center, 15)))
-        await self.do_actions(self.combinedActions)
+    #async def scanner_sweep(self):
+    #    for cc in self.units(COMMANDCENTER).ready:
+    #        self.combinedActions.append(cc(SCANNERSWEEP_SCAN, cc.position.towards(self.game_info.map_center, 15)))
+    #    await self.do_actions(self.combinedActions)
 
     async def defend_rush(self, iteration):
         # 如果兵力小于15，认为是前期的rush
