@@ -225,7 +225,7 @@ class LakersBot(sc2.BotAI):
 
         else:
             # 在发动第一波进攻的两分半钟时间内持续补充兵力
-            if self.attack_round == 1 and self.first_round_start_time + 150 <= self.time:
+            if self.attack_round == 1 and self.first_round_start_time + 150 >= self.time:
                 for u in self.army_units:
                     await self.army_attack(u, self.units(u).idle.amount, self.enemy_start_locations[0])
 
@@ -287,9 +287,9 @@ class LakersBot(sc2.BotAI):
         if self.supply_left <= 7 and self.can_afford(SUPPLYDEPOT) and not self.already_pending(SUPPLYDEPOT): # and not self.first_supply_built:
             #await self.build(SUPPLYDEPOT, near = cc.position.towards(self.game_info.map_center, 20))
             await self.build(SUPPLYDEPOT, near = self.find_ramp_corner(cc))
-            for sd in self.units(SUPPLYDEPOT).ready:
-                self.combinedActions.append(sd(MORPH_SUPPLYDEPOT_LOWER))
-            await self.do_actions(self.combinedActions)
+        for sd in self.units(SUPPLYDEPOT).ready:
+            self.combinedActions.append(sd(MORPH_SUPPLYDEPOT_LOWER))
+        await self.do_actions(self.combinedActions)
 
     async def build_BARRACKS(self, cc):
         if self.units(BARRACKS).amount == 0 and self.can_afford(BARRACKS):
