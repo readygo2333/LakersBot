@@ -147,6 +147,11 @@ class LakersBot(sc2.BotAI):
         ############### 扩张 ######################
         await self.expand_command_center(iteration)
 
+        ############### 雷达 ######################
+        for cc in self.units(COMMANDCENTER).ready:
+            if self.can_afford(UPGRADETOORBITAL_ORBITALCOMMAND):
+                await self.do(cc(UPGRADETOORBITAL_ORBITALCOMMAND))
+
     async def army_train(self, unit_type, number):
         if self.units(unit_type).idle.amount < number:
             for st in self.units(self.factory[unit_type]):
@@ -224,8 +229,8 @@ class LakersBot(sc2.BotAI):
                 #await self.chat_send("热热身~")
 
         else:
-            # 在发动第一波进攻的两分半钟时间内持续补充兵力
-            if self.attack_round == 1 and self.first_round_start_time + 150 >= self.time:
+            # 如果发动的第一波进攻，并且在发动进攻的两分半钟时间内持续补充兵力
+            if self.attack_round == 1 and self.first_round_start_time + 150 <= self.time:
                 for u in self.army_units:
                     await self.army_attack(u, self.units(u).idle.amount, self.enemy_start_locations[0])
 
@@ -370,7 +375,7 @@ class LakersBot(sc2.BotAI):
         return ccs[self.units(COMMANDCENTER).amount - 1]
 
     async def defend_push(self):
-        if self.time >= 5 * 60:
+        if self.time >= 2 * 60:
             threats = []
             for structure_type in self.defend_around:
                 for structure in self.units(structure_type):
@@ -381,6 +386,7 @@ class LakersBot(sc2.BotAI):
                     break
 
             if 0 < len(threats) < 7:
+                await self.scanner_sweep()
                 defence_target = threats[0].position.random_on_distance(random.randrange(1, 3))
                 await self.army_attack(MARINE, 0, defence_target)
                 await self.army_attack(BANSHEE, 0, defence_target)
@@ -392,14 +398,19 @@ class LakersBot(sc2.BotAI):
                 await self.army_attack(REAPER, 0, defence_target)
                 await self.army_attack(SIEGETANK, 0, defence_target)
                 await self.army_attack(BANSHEE, 0, defence_target)
+                await self.scanner_sweep()
             elif len(threats) == 0 and self.is_under_attack == True:
                 self.is_under_attack = False
                 self.gogogo = True
 
+    async def scanner_sweep(self):
+        for cc in self.units(COMMANDCENTER).ready:
+            self.combinedActions.append(cc(SCANNERSWEEP_SCAN, cc.position.towards(self.game_info.map_center, 15)))
+        await self.do_actions(self.combinedActions)
 
     async def defend_rush(self, iteration):
         # 如果兵力小于15，认为是前期的rush
-        if self.time < 5 * 60 and (len(self.units(MARINE)) + len(self.units(REAPER)) + len(self.units(MARAUDER)) < 15 and self.known_enemy_units) or self.is_defend_rush:
+        if self.time < 2 * 60 and (len(self.units(MARINE)) + len(self.units(REAPER)) + len(self.units(MARAUDER)) < 15 and self.known_enemy_units) or self.is_defend_rush:
             threats = []
             for structure_type in self.defend_around:
                 for structure in self.units(structure_type):
