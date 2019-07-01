@@ -48,6 +48,7 @@ class LakersBot(sc2.BotAI):
                                     ENGINEERINGBAYRESEARCH_TERRANINFANTRYWEAPONSLEVEL3,ENGINEERINGBAYRESEARCH_TERRANINFANTRYARMORLEVEL3]
         self.is_under_attack = False
         self.gogogo = False
+        self.marine_combatshield = False
 
     async def on_step(self, iteration):
         #每次迭代前清空，否则有BUG
@@ -516,12 +517,10 @@ class LakersBot(sc2.BotAI):
             self.cloak_started = True
 
         if self.units(BARRACKSTECHLAB).ready.exists:
-            if self.can_afford(BARRACKSTECHLABRESEARCH_STIMPACK):
-                for u in self.units(BARRACKSTECHLAB).ready:
-                    await self.do(u(BARRACKSTECHLABRESEARCH_STIMPACK))
-            if self.can_afford(RESEARCH_COMBATSHIELD):
-                for u in self.units(BARRACKSTECHLAB).ready:
-                    await self.do(u(RESEARCH_COMBATSHIELD))
+            if not self.marine_combatshield and self.can_afford(RESEARCH_COMBATSHIELD):
+                self.marine_combatshield = True
+                u = self.units(BARRACKSTECHLAB).ready.first
+                await self.do(u(RESEARCH_COMBATSHIELD))
 
         #机枪兵按规则只能升1级
         if self.upgradesIndex < 2:
