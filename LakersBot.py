@@ -134,14 +134,13 @@ class LakersBot(sc2.BotAI):
             await self.train_WORKERS(cc)           # 训练农民
 
         ################ 采矿 ######################
-        #if not self.is_worker_rush:
-        #await self.distribute_workers()
+        #if not self.is_worker_rush      
         for a in self.units(REFINERY):
             if a.assigned_harvesters < a.ideal_harvesters:
                 w = self.workers.closer_than(20, a)
                 if w.exists:
                     await self.do(w.random.gather(a))
-
+        await self.distribute_workers()
         #await self.scan_move()
 
         ############### 扩张 ######################
@@ -249,6 +248,7 @@ class LakersBot(sc2.BotAI):
     ############ 功能函数 ################
     #把空闲农民派到离指定基地最近的矿上
     async def adjust_workers(self, cc):
+        return
         for idle_worker in self.workers.idle:
             mf = self.state.mineral_field.closest_to(cc.position)
             self.combinedActions.append(idle_worker.gather(mf))
