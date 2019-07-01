@@ -50,6 +50,7 @@ class LakersBot(sc2.BotAI):
         self.gogogo = False
         self.marine_combatshield = False
         self.first_round_start_time = 0
+        self.attacking = False
 
     async def on_step(self, iteration):
         #每次迭代前清空，否则有BUG
@@ -58,6 +59,8 @@ class LakersBot(sc2.BotAI):
         await self.tank_sige_handler()
         await self.banshee_visible_handler()
         await self.upgrader()
+        if self.my_army() <= len(self.known_enemy_units)/4:
+            self.attacking = False
 
     async def command_center(self, iteration):
         # 防守
@@ -154,17 +157,22 @@ class LakersBot(sc2.BotAI):
     async def army_train(self, unit_type, number):
         if self.units(unit_type).idle.amount < number:
             for st in self.units(self.factory[unit_type]):
-                if self.factory[unit_type] == BARRACKS or self.factory[unit_type] == FACTORY or self.factory[unit_type] == STARPORT:
+                if not st.noqueue:
+                    continue
+                if self.factory[unit_type] == FACTORY or self.factory[unit_type] == STARPORT:
                     if st.add_on_tag != 0 and self.can_afford(unit_type):
                         self.combinedActions.append(st.train(unit_type))
                         if number <= 0:
                             break
-                        number = number - 1
+                elif self.factory[unit_type] == BARRACKS:
+                     if self.can_afford(unit_type):
+                        self.combinedActions.append(st.train(unit_type))
+                        if number <= 0:
+                            break                 
                 elif self.can_afford(unit_type):
                     self.combinedActions.append(st.train(unit_type))
                     if number <= 0:
                         break
-                    number = number - 1
         await self.do_actions(self.combinedActions)
 
     async def army_attack(self, unit_type, number, target):
@@ -178,6 +186,7 @@ class LakersBot(sc2.BotAI):
                 for u in ug:
                     #self.combinedActions.append(u.stop())
                     self.combinedActions.append(u.attack(target))
+            self.attacking = True
             await self.do_actions(self.combinedActions)
 
     def my_army(self):
@@ -305,7 +314,7 @@ class LakersBot(sc2.BotAI):
         #    await self.build(BARRACKS, near = cc.position.towards(self.game_info.map_center, 20))
         # 修建 FACTORYTECHLAB, 以建掠夺者和幽灵
         for sp in self.units(BARRACKS).ready:
-            if sp.add_on_tag == 0:
+            if sp.add_on_tag == 0 and self.units(BARRACKSTECHLAB).amount < 1 and not self.already_pending(BARRACKSTECHLAB):
                 await self.do(sp.build(BARRACKSTECHLAB))
             else:
                 techl = self.units()
@@ -500,8 +509,11 @@ class LakersBot(sc2.BotAI):
                     abilities = await self.get_available_abilities(sigged_tank)
                     if UNSIEGE_UNSIEGE in abilities:
                         self.combinedActions.append(sigged_tank(UNSIEGE_UNSIEGE))
+                        if self.attacking == True:
+                            self.combinedActions.append(sigged_tank.attack(enemy_start_locations[0]))                            
                 else:
                     threats.clear()
+            
         await self.do_actions(self.combinedActions)
 
 
@@ -520,12 +532,16 @@ class LakersBot(sc2.BotAI):
                     if BEHAVIOR_CLOAKON_BANSHEE in abilities:
                         if banshee.energy > 40:
                             self.combinedActions.append(banshee(BEHAVIOR_CLOAKON_BANSHEE))
+                            if self.attacking == True:
+                                self.combinedActions.append(banshee.attack(enemy_start_locations[0]))   
                 else:
                     threats.clear()
                     abilities = await self.get_available_abilities(banshee)
                     if BEHAVIOR_CLOAKOFF_BANSHEE in abilities:
                         if banshee.energy > 30:
                             self.combinedActions.append(banshee(BEHAVIOR_CLOAKOFF_BANSHEE))
+                            if self.attacking == True:
+                                self.combinedActions.append(banshee.attack(enemy_start_locations[0])) 
         await self.do_actions(self.combinedActions)
 
     async def upgrader(self):
