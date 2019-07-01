@@ -49,6 +49,7 @@ class LakersBot(sc2.BotAI):
         self.is_under_attack = False
         self.gogogo = False
         self.marine_combatshield = False
+        self.first_round_start_time = 0
 
     async def on_step(self, iteration):
         #每次迭代前清空，否则有BUG
@@ -150,7 +151,7 @@ class LakersBot(sc2.BotAI):
         if self.units(unit_type).idle.amount < number:
             for st in self.units(self.factory[unit_type]):
                 if self.factory[unit_type] == BARRACKS or self.factory[unit_type] == FACTORY or self.factory[unit_type] == STARPORT:
-                    if st.add_on_tag != 0 and self.can_afford(unit_type) and st.noqueue:
+                    if st.add_on_tag != 0 and self.can_afford(unit_type):
                         self.combinedActions.append(st.train(unit_type))
                         if number <= 0:
                             break
@@ -219,9 +220,15 @@ class LakersBot(sc2.BotAI):
                 await self.army_attack(MARINE, 10, self.enemy_start_locations[0])
                 await self.army_attack(BANSHEE, 2, self.enemy_start_locations[0])
                 self.attack_round += 1
+                self.first_round_start_time = self.time
                 #await self.chat_send("热热身~")
 
         else:
+            # 在发动第一波进攻的两分半钟时间内持续补充兵力
+            if self.attack_round == 1 and self.first_round_start_time + 150 <= self.time:
+                for u in self.army_units:
+                    await self.army_attack(u, self.units(u).idle.amount, self.enemy_start_locations[0])
+
             # 如果我的军力占优或者相当，派出 80% 军队进攻
             if self.my_army() >= len(self.known_enemy_units) and self.my_army() > 15:
                 #await self.chat_send("Let's Rock!!!")
@@ -322,7 +329,7 @@ class LakersBot(sc2.BotAI):
             await self.build(ENGINEERINGBAY, near = cc.position.towards(self.game_info.map_center, 30))
 
     async def build_SENSORTOWER(self, cc):
-        if self.units(SENSORTOWER).amount < 2 * self.units(COMMANDCENTER).amount and self.units(ENGINEERINGBAY).ready.exists and self.can_afford(SENSORTOWER) and not self.already_pending(SENSORTOWER):
+        if self.units(SENSORTOWER).amount < 1 and self.units(ENGINEERINGBAY).ready.exists and self.can_afford(SENSORTOWER) and not self.already_pending(SENSORTOWER):
             await self.build(SENSORTOWER, near = cc.position.towards(self.game_info.map_center, 2))
 
     async def build_MISSILETURRET(self, cc):
